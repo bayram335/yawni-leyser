@@ -1,0 +1,60 @@
+-- Oyuncu ve karakter bilgilerini al
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local TeleportService = game:GetService("TeleportService")
+local PlaceId = game.PlaceId -- Mevcut oyunun PlaceId'sini al
+
+-- Coin toplama işlevi
+local function collectCoins()
+    local coinCollected = false
+
+    for _, object in pairs(workspace:GetDescendants()) do
+        -- Coin nesnelerini bul
+        if object:IsA("BasePart") and string.match(object.Name:lower(), "coin") then
+            -- Karakteri coin'e teleport et
+            character:PivotTo(object.CFrame)
+            coinCollected = true
+            wait(0.1) -- Toplama hızı
+        end
+    end
+
+    return coinCollected
+end
+
+-- Sunucu değiştirme işlevi
+local function switchServer()
+    -- Sunucular listesine eriş
+    local servers = game:GetService("HttpService"):JSONDecode(
+        game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100")
+    )
+
+    for _, server in pairs(servers.data) do
+        if server.playing < server.maxPlayers then
+            -- Sunucuya geçiş yap
+            TeleportService:TeleportToPlaceInstance(PlaceId, server.id, player)
+            return
+        end
+    end
+
+    -- Eğer boş sunucu bulunamazsa mevcut sunucuda kal
+    print("Boş sunucu bulunamadı, mevcut sunucuda devam ediliyor.")
+end
+
+-- Script'i yeniden başlatma işlevi
+local function restartScript()
+    local args = {[1] = game:GetService("Players").LocalPlayer}  -- Script'i başlatacak olan player
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/your_script_url/script_name.lua"))()  -- Yeni script URL'si
+end
+
+-- Ana döngü
+while wait(0.1) do
+    local foundCoins = collectCoins()
+
+    if not foundCoins then
+        -- Eğer coin yoksa sunucu değiştir
+        print("Tüm coin'ler toplandı. Sunucu değiştiriliyor...")
+        switchServer()
+        wait(1)  -- Sunucu değiştirdikten sonra bekleme
+        restartScript()  -- Script'i yeniden başlat
+    end
+end
